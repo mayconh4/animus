@@ -171,7 +171,7 @@ function unlockApp(){
 
 <div id="app">
  <!-- HOME -->
- <section class="screen" id="s-home">
+ <section class="screen active" id="s-home">
   <div class="head">
    <div><div class="chip">Painel de controle</div><h1 id="hGreet" style="margin-top:8px">Olá</h1></div>
    <div class="streak">⚡ <span id="hStreak">0</span>d</div>
@@ -642,7 +642,7 @@ function resetAll(){if(confirm("Apagar todos os dados e recomeçar?")){localStor
 
 /* ============ ONBOARDING ============ */
 function obGo(n){$("obStep0").style.display=n?"none":"";$("obStep1").style.display=n?"":"none"}
-function obFinish(){S.name=$("obName").value.trim();S.dream=$("obDream").value.trim();save();$("ob").classList.remove("show");touchStreak();save();renderHome();confetti()}
+function obFinish(){S.name=$("obName").value.trim();S.dream=$("obDream").value.trim();save();$("ob").classList.remove("show");touchStreak();save();nav("s-home");confetti()}
 
 /* ============ INIT ============ */
 (function init(){
