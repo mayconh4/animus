@@ -390,7 +390,7 @@ function addHabito(){modal(`<h2>Novo hábito diário</h2><p class="sub" style="m
  <label>Hábito</label><input id="mN" placeholder="Leitura, exercício, meditação, estudo...">
  <button class="btn cyan" style="margin-top:18px" onclick="if($('mN').value.trim()){S.habitos.push({n:$('mN').value.trim(),hist:{}});save();closeModal();renderHome()}">Criar</button>`)}
 function toggleHabito(i){const h=S.habitos[i],d=hoje();h.hist[d]?delete h.hist[d]:h.hist[d]=1;if(h.hist[d])touchStreak();save();renderHome();checkBadges()}
-function delHabito(i){if(confirm("Excluir hábito \\""+S.habitos[i].n+"\\"?")){S.habitos.splice(i,1);save();renderHome()}}
+function delHabito(i){if(confirm('Excluir hábito "'+S.habitos[i].n+'"?')){S.habitos.splice(i,1);save();renderHome()}}
 function habitSeq(h){let s=0,d=new Date();if(!h.hist[hoje()])d.setDate(d.getDate()-1);
  while(h.hist[d.toISOString().slice(0,10)]){s++;d.setDate(d.getDate()-1)}return s}
 function habitCons(h){let c=0;for(let k=0;k<7;k++){const d=new Date();d.setDate(d.getDate()-k);if(h.hist[d.toISOString().slice(0,10)])c++}return Math.round(c/7*100)}
