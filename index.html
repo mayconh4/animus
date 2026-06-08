@@ -234,6 +234,7 @@ function unlockApp(){
   <div class="head"><div><div class="chip">Módulo financeiro</div><h1 style="margin-top:8px">Caixa</h1></div></div>
   <div class="fintabs">
    <div class="tab on" data-ft="visao" onclick="finTab('visao')">Visão</div>
+   <div class="tab" data-ft="extrato" onclick="finTab('extrato')">Extrato</div>
    <div class="tab" data-ft="cats" onclick="finTab('cats')">Categorias</div>
    <div class="tab" data-ft="dividas" onclick="finTab('dividas')">Dívidas</div>
    <div class="tab" data-ft="desejos" onclick="finTab('desejos')">Desejos</div>
@@ -280,7 +281,7 @@ function unlockApp(){
 <script>
 /* ============ ESTADO ============ */
 const DEF={name:"",dream:"",done:[],exDone:{},streak:0,lastDay:"",badges:[],diario:[],
- fin:{renda:0,cats:[{n:"Essenciais",p:55},{n:"Investimentos",p:10},{n:"Educação",p:10},{n:"Lazer",p:10},{n:"Doação",p:5},{n:"Sonhos",p:10}],gastos:[],dividas:[],desejos:[],invest:[]},aiCount:0};
+ fin:{renda:0,receb:[],cats:[{n:"Essenciais",p:55},{n:"Investimentos",p:10},{n:"Educação",p:10},{n:"Lazer",p:10},{n:"Doação",p:5},{n:"Sonhos",p:10}],gastos:[],dividas:[],desejos:[],invest:[]},aiCount:0};
 let S=load();
 function load(){try{const s=JSON.parse(localStorage.getItem("animus")||"null");return s?Object.assign(JSON.parse(JSON.stringify(DEF)),s):JSON.parse(JSON.stringify(DEF))}catch(e){return JSON.parse(JSON.stringify(DEF))}}
 function save(){localStorage.setItem("animus",JSON.stringify(S))}
@@ -322,7 +323,7 @@ const BADGES=[
  {id:"b8",ic:"🤖",n:"Curioso",t:()=>S.aiCount>=1},
  {id:"b9",ic:"💬",n:"Mentorado",t:()=>S.aiCount>=20},
  {id:"b10",ic:"✍️",n:"Diarista",t:()=>S.diario.length>=5},
- {id:"b11",ic:"💰",n:"Organizado",t:()=>S.fin.renda>0},
+ {id:"b11",ic:"💰",n:"Organizado",t:()=>(S.fin.receb||[]).length>0},
  {id:"b12",ic:"🏆",n:"Quitador",t:()=>S.fin.dividas.some(d=>d.pago)},
 ];
 function checkBadges(){BADGES.forEach(b=>{if(!S.badges.includes(b.id)&&b.t()){S.badges.push(b.id);save();toast("🏅 Conquista desbloqueada: "+b.n);confetti()}})}
@@ -342,8 +343,8 @@ function renderHome(){
  $("hDream").textContent=S.dream||"Defina sua meta na Lição 1.";
  const d=S.diario[0];
  $("hDiario").innerHTML=d?`<b>${esc(d.dt)}</b> — ${esc(d.tx.slice(0,90))}${d.tx.length>90?"…":""}`:"Nenhum registro ainda. O que você aprendeu hoje?";
- const r=S.fin.renda;
- $("hCaixa").textContent=r?`Renda base ${BRL(r)} distribuída em ${S.fin.cats.length} categorias. ${S.fin.dividas.filter(d=>!d.pago).length} dívida(s) em aberto.`:"Configure suas categorias financeiras.";
+ const rt=(S.fin.receb||[]).reduce((a,r)=>a+r.v,0),gt=S.fin.gastos.reduce((a,g)=>a+g.v,0);
+ $("hCaixa").textContent=rt?`Saldo ${BRL(rt-gt)} distribuído em ${S.fin.cats.length} categorias. ${S.fin.dividas.filter(d=>!d.pago).length} dívida(s) em aberto.`:"Lance seu primeiro recebimento para distribuir nas categorias.";
 }
 function continueStudy(){const next=MAIN.find(l=>!S.done.includes(l.id))||MAIN[0];openLesson(next.id,"s-home")}
 
@@ -446,14 +447,30 @@ function finTab(t){curFin=t;document.querySelectorAll("[data-ft]").forEach(e=>e.
 function renderFin(){
  const F=S.fin;let h="";
  if(curFin==="visao"){
+  F.receb=F.receb||[];
+  const recebTotal=F.receb.reduce((a,r)=>a+r.v,0);
   const gastoTotal=F.gastos.reduce((a,g)=>a+g.v,0);
-  h=`<div class="card neon"><div class="chip">Renda mensal</div><div class="big" style="margin-top:6px">${BRL(F.renda)}</div>
-   <button class="btn ghost sm" style="margin-top:10px" onclick="editRenda()">Ajustar renda</button></div>
-  <div class="card"><h3>Distribuição automática</h3>${F.cats.map(c=>{const alvo=F.renda*c.p/100;const gasto=F.gastos.filter(g=>g.c===c.n).reduce((a,g)=>a+g.v,0);
-   return `<div style="margin-top:12px"><div class="row" style="justify-content:space-between;font-size:13px"><b>${esc(c.n)} <span class="mono" style="color:var(--ink3)">${c.p}%</span></b><span>${BRL(gasto)} / ${BRL(alvo)}</span></div>
-   <div class="bar" style="margin-top:5px"><i style="width:${alvo?Math.min(100,gasto/alvo*100):0}%;${gasto>alvo?"background:var(--err)":""}"></i></div></div>`}).join("")}
-   <button class="btn primary sm" style="margin-top:16px" onclick="addGasto()">+ Lançar gasto</button></div>
-  <div class="card"><h3>Últimos lançamentos</h3>${F.gastos.slice(0,8).map((g,i)=>`<div class="itemrow"><div><b style="font-size:14px">${esc(g.d)}</b><div class="sub" style="font-size:11.5px">${esc(g.c)} · ${esc(g.dt)}</div></div><div class="row">${BRL(g.v)}<button class="btn ghost sm" onclick="delGasto(${i})">✕</button></div></div>`).join("")||"<p class='sub'>Nenhum gasto lançado.</p>"}</div>`;
+  h=`<div class="card neon"><div class="chip">Total recebido</div><div class="big" style="margin-top:6px">${BRL(recebTotal)}</div>
+   <p class="sub" style="margin-top:4px">Disponível: <b>${BRL(recebTotal-gastoTotal)}</b></p>
+   <button class="btn cyan sm" style="margin-top:12px" onclick="addReceb()">+ Lançar recebimento</button></div>
+  <div class="card"><h3>Saldo por categoria</h3><p class="sub" style="margin-top:2px;font-size:12px">Cada recebimento é distribuído automaticamente pelos percentuais.</p>
+   ${F.cats.map(c=>{const entrou=recebTotal*c.p/100;const gasto=F.gastos.filter(g=>g.c===c.n).reduce((a,g)=>a+g.v,0);const saldo=entrou-gasto;
+   return `<div style="margin-top:12px"><div class="row" style="justify-content:space-between;font-size:13px"><b>${esc(c.n)} <span class="mono" style="color:var(--ink3)">${c.p}%</span></b><span style="font-weight:600;color:${saldo<0?"var(--err)":"var(--ink)"}">${BRL(saldo)}</span></div>
+   <div class="bar" style="margin-top:5px"><i style="width:${entrou?Math.max(0,Math.min(100,saldo/entrou*100)):0}%;${saldo<0?"background:var(--err)":""}"></i></div>
+   <div class="sub" style="font-size:11px;margin-top:3px">Entrou ${BRL(entrou)} · Gastou ${BRL(gasto)}</div></div>`}).join("")}
+   <button class="btn ghost sm" style="margin-top:16px" onclick="addGasto()">− Lançar gasto de uma categoria</button></div>`;
+ }
+ if(curFin==="extrato"){
+  F.receb=F.receb||[];
+  const recebTotal=F.receb.reduce((a,r)=>a+r.v,0),gastoTotal=F.gastos.reduce((a,g)=>a+g.v,0);
+  const movs=[...F.receb.map((r,i)=>({t:"e",i,d:r.d,dt:r.dt,v:r.v,ts:r.ts||0})),...F.gastos.map((g,i)=>({t:"s",i,d:g.d,c:g.c,dt:g.dt,v:g.v,ts:g.ts||0}))].sort((a,b)=>b.ts-a.ts);
+  h=`<div class="grid2">
+   <div class="card" style="margin-bottom:0"><div class="chip" style="color:var(--ok)">Entradas</div><div style="font-size:20px;font-weight:700;margin-top:6px;color:var(--ok)">+ ${BRL(recebTotal)}</div></div>
+   <div class="card" style="margin-bottom:0"><div class="chip" style="color:var(--err)">Saídas</div><div style="font-size:20px;font-weight:700;margin-top:6px;color:var(--err)">− ${BRL(gastoTotal)}</div></div></div>
+  <div class="card" style="margin-top:14px"><div class="row" style="justify-content:space-between"><h3>Saldo</h3><span class="big" style="font-size:22px;color:${recebTotal-gastoTotal<0?"var(--err)":"var(--neon2)"}">${BRL(recebTotal-gastoTotal)}</span></div>
+   <div class="row" style="margin-top:12px"><button class="btn cyan sm" style="flex:1" onclick="addReceb()">+ Entrada</button><button class="btn primary sm" style="flex:1" onclick="addGasto()">− Saída</button></div></div>
+  <div class="card"><h3>Movimentações</h3>${movs.map(m=>`<div class="itemrow"><div><b style="font-size:14px">${esc(m.d)}</b><div class="sub" style="font-size:11.5px">${m.t==="e"?"Entrada":"Saída · "+esc(m.c)} · ${esc(m.dt)}</div></div>
+   <div class="row"><b style="color:${m.t==="e"?"var(--ok)":"var(--err)"}">${m.t==="e"?"+":"−"} ${BRL(m.v)}</b><button class="btn ghost sm" onclick="${m.t==="e"?`S.fin.receb.splice(${m.i},1)`:`S.fin.gastos.splice(${m.i},1)`};save();renderFin()">✕</button></div></div>`).join("")||"<p class='sub' style='margin-top:8px'>Nenhuma movimentação ainda.</p>"}</div>`;
  }
  if(curFin==="cats"){
   const tot=F.cats.reduce((a,c)=>a+c.p,0);
@@ -487,9 +504,14 @@ function renderFin(){
 function modal(html){$("modalBody").innerHTML=html;$("modal").classList.add("show")}
 function closeModal(){$("modal").classList.remove("show")}
 $("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
-function editRenda(){modal(`<h2>Renda mensal</h2><label>Valor (R$)</label><input id="mV" type="number" value="${S.fin.renda||""}"><button class="btn cyan" style="margin-top:18px" onclick="S.fin.renda=+$('mV').value||0;save();closeModal();renderFin();checkBadges()">Salvar</button>`)}
-function addGasto(){modal(`<h2>Lançar gasto</h2><label>Descrição</label><input id="mD"><label>Valor (R$)</label><input id="mV" type="number"><label>Categoria</label><select id="mC">${S.fin.cats.map(c=>`<option>${esc(c.n)}</option>`).join("")}</select>
- <button class="btn cyan" style="margin-top:18px" onclick="if(+$('mV').value){S.fin.gastos.unshift({d:$('mD').value||'Gasto',v:+$('mV').value,c:$('mC').value,dt:new Date().toLocaleDateString('pt-BR')});save();closeModal();renderFin()}">Lançar</button>`)}
+function addReceb(){modal(`<h2>Lançar recebimento</h2><p class="sub" style="margin-top:4px">O valor será distribuído automaticamente entre as categorias.</p>
+ <label>Veio de quê? (origem)</label><input id="mD" placeholder="Salário, venda, freela...">
+ <label>Valor (R$)</label><input id="mV" type="number">
+ <div id="mPrev" class="sub" style="margin-top:10px"></div>
+ <button class="btn cyan" style="margin-top:14px" onclick="if(+$('mV').value){S.fin.receb=S.fin.receb||[];S.fin.receb.unshift({d:$('mD').value||'Recebimento',v:+$('mV').value,dt:new Date().toLocaleDateString('pt-BR'),ts:Date.now()});save();closeModal();renderFin();renderHome();checkBadges();toast('Recebimento distribuído nas categorias.')}">Lançar e distribuir</button>`);
+ $("mV").addEventListener("input",()=>{const v=+$("mV").value||0;$("mPrev").innerHTML=v?"<b>Distribuição:</b><br>"+S.fin.cats.map(c=>`${esc(c.n)}: <b>${BRL(v*c.p/100)}</b>`).join(" · "):""})}
+function addGasto(){modal(`<h2>Lançar saída</h2><label>Descrição</label><input id="mD"><label>Valor (R$)</label><input id="mV" type="number"><label>Sai da categoria</label><select id="mC">${S.fin.cats.map(c=>`<option>${esc(c.n)}</option>`).join("")}</select>
+ <button class="btn cyan" style="margin-top:18px" onclick="if(+$('mV').value){S.fin.gastos.unshift({d:$('mD').value||'Gasto',v:+$('mV').value,c:$('mC').value,dt:new Date().toLocaleDateString('pt-BR'),ts:Date.now()});save();closeModal();renderFin()}">Lançar</button>`)}
 function delGasto(i){S.fin.gastos.splice(i,1);save();renderFin()}
 function addItem(kind){const t={dividas:"Nova dívida",desejos:"Novo desejo",invest:"Novo aporte"}[kind];
  modal(`<h2>${t}</h2><label>Nome</label><input id="mD"><label>Valor (R$)</label><input id="mV" type="number">
