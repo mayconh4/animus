@@ -131,6 +131,26 @@ ul.clean li::before{content:"▸";position:absolute;left:4px;color:var(--neon)}
 <div class="scan"></div>
 <div id="toast"></div>
 
+<!-- LOCK -->
+<div id="lock" style="position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;justify-content:center;padding:34px;max-width:520px;margin:0 auto;background-image:radial-gradient(800px 500px at 50% -10%,rgba(0,212,255,.1),transparent 60%)">
+ <div class="chip">ANIMUS · ACESSO RESTRITO</div>
+ <h1 style="margin:14px 0 6px">Identifique-se</h1>
+ <p class="sub">Este sistema é protegido. Insira a senha de acesso.</p>
+ <input id="lockPw" type="password" placeholder="Senha" style="margin-top:22px" onkeydown="if(event.key==='Enter')unlockApp()">
+ <p id="lockErr" style="color:var(--err);font-size:13px;margin-top:8px;display:none">Senha incorreta.</p>
+ <button class="btn cyan" style="margin-top:16px" onclick="unlockApp()">Entrar</button>
+</div>
+<script>
+function _h(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(36)}
+const _LK="9dv69p";
+(function(){if(sessionStorage.getItem("animus_ok")==="1")document.getElementById("lock").style.display="none"})();
+function unlockApp(){
+ const v=document.getElementById("lockPw").value;
+ if(_h(v)===_LK){sessionStorage.setItem("animus_ok","1");document.getElementById("lock").style.display="none"}
+ else{document.getElementById("lockErr").style.display="block";document.getElementById("lockPw").value=""}
+}
+</script>
+
 <!-- ONBOARDING -->
 <div id="ob">
  <div class="chip">ANIMUS · INICIALIZAÇÃO</div>
