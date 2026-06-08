@@ -18,11 +18,13 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
+html,body{overflow-x:hidden;width:100%;max-width:100%;position:relative;touch-action:pan-y}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;
  background-image:radial-gradient(1200px 600px at 80% -10%,rgba(0,212,255,.06),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(0,212,255,.05),transparent 60%)}
 .mono{font-family:'IBM Plex Mono',monospace}
 #app{max-width:520px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;position:relative}
-.screen{flex:1;overflow-y:auto;padding:22px 20px 110px;display:none;scroll-behavior:smooth}
+.screen{flex:1;overflow-y:auto;overflow-x:hidden;padding:22px 20px 110px;display:none;scroll-behavior:smooth;max-width:100%}
+#app{overflow-x:hidden;width:100%}
 .screen.active{display:block;animation:fadeUp .35s cubic-bezier(.2,.8,.2,1)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
@@ -179,6 +181,20 @@ function unlockApp(){
    <div class="stat"><div class="v" id="stEx">0</div><div class="k">Exercícios</div></div>
    <div class="stat"><div class="v" id="stBad">0</div><div class="k">Conquistas</div></div>
   </div>
+  <div class="card neon">
+   <div class="row" style="justify-content:space-between"><div><div class="chip">IEP · Índice de Evolução Pessoal</div><div class="big" style="margin-top:6px"><span id="iepV">0</span><span style="font-size:15px;color:var(--ink3)">/100</span></div></div>
+   <svg id="iepSpark" width="120" height="44" viewBox="0 0 120 44"></svg></div>
+   <div class="bar" style="margin-top:8px"><i id="iepBar" style="width:0%"></i></div>
+   <p class="sub" style="margin-top:8px;font-size:11.5px" id="iepDet"></p>
+  </div>
+  <div class="card">
+   <div class="row" style="justify-content:space-between"><h3>Hábitos de hoje</h3><button class="btn ghost sm" onclick="addHabito()">+ Hábito</button></div>
+   <div id="hHabitos" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px"></div>
+  </div>
+  <div class="card">
+   <div class="row" style="justify-content:space-between"><h3>Metas</h3><button class="btn ghost sm" onclick="addMeta()">+ Meta</button></div>
+   <div id="hMetas" style="margin-top:6px"></div>
+  </div>
   <div class="card neon" onclick="nav('s-ai')" style="cursor:pointer">
    <div class="chip">Mentor IA</div>
    <h2 style="margin:8px 0 4px">Pergunte qualquer coisa</h2>
@@ -249,6 +265,13 @@ function unlockApp(){
   <div class="card"><h3>Conquistas</h3><div class="badges" id="pBadges" style="margin-top:12px"></div></div>
   <div class="card"><h3>Diário</h3><div id="pDiario" style="margin-top:6px"></div></div>
   <div class="card">
+   <h3>Base de Conhecimento</h3>
+   <p class="sub" style="margin-top:4px">O mentor já vem treinado nas 12 lições + complementos. Adicione novos documentos (.txt ou .md) — eles passam a ser consultados nas respostas. Para PDF/DOCX, converta antes para texto.</p>
+   <input type="file" id="kbFile" accept=".txt,.md,.markdown" multiple style="display:none" onchange="kbUpload(this.files)">
+   <button class="btn ghost sm" style="margin-top:12px" onclick="$('kbFile').click()">+ Enviar documentos</button>
+   <div id="kbList" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
    <h3>Sistema</h3>
    <label>Nome</label><input id="pEditName">
    <label>Meta tipo C</label><textarea id="pEditDream" rows="2"></textarea>
@@ -280,7 +303,7 @@ function unlockApp(){
 <script src="data.js"></script>
 <script>
 /* ============ ESTADO ============ */
-const DEF={name:"",dream:"",done:[],exDone:{},streak:0,lastDay:"",badges:[],diario:[],
+const DEF={name:"",dream:"",done:[],exDone:{},streak:0,lastDay:"",badges:[],diario:[],metas:[],habitos:[],iepHist:[],
  fin:{renda:0,receb:[],cats:[{n:"Essenciais",p:55},{n:"Investimentos",p:10},{n:"Educação",p:10},{n:"Lazer",p:10},{n:"Doação",p:5},{n:"Sonhos",p:10}],gastos:[],dividas:[],desejos:[],invest:[]},aiCount:0};
 let S=load();
 function load(){try{const s=JSON.parse(localStorage.getItem("animus")||"null");return s?Object.assign(JSON.parse(JSON.stringify(DEF)),s):JSON.parse(JSON.stringify(DEF))}catch(e){return JSON.parse(JSON.stringify(DEF))}}
@@ -345,8 +368,58 @@ function renderHome(){
  $("hDiario").innerHTML=d?`<b>${esc(d.dt)}</b> — ${esc(d.tx.slice(0,90))}${d.tx.length>90?"…":""}`:"Nenhum registro ainda. O que você aprendeu hoje?";
  const rt=(S.fin.receb||[]).reduce((a,r)=>a+r.v,0),gt=S.fin.gastos.reduce((a,g)=>a+g.v,0);
  $("hCaixa").textContent=rt?`Saldo ${BRL(rt-gt)} distribuído em ${S.fin.cats.length} categorias. ${S.fin.dividas.filter(d=>!d.pago).length} dívida(s) em aberto.`:"Lance seu primeiro recebimento para distribuir nas categorias.";
+ renderIEP();renderHabitos();renderMetas();
 }
 function continueStudy(){const next=MAIN.find(l=>!S.done.includes(l.id))||MAIN[0];openLesson(next.id,"s-home")}
+
+/* ============ METAS / HÁBITOS / IEP ============ */
+const CATS=["Saúde","Finanças","Conhecimento","Relacionamentos","Espiritualidade","Negócios","Carreira"];
+const hoje=()=>new Date().toISOString().slice(0,10);
+function addMeta(idx){const m=idx!=null?S.metas[idx]:{n:"",cat:CATS[1],prazo:"",prio:"Alta",prog:0};
+ modal(`<h2>${idx!=null?"Editar meta":"Nova meta tipo C"}</h2><p class="sub" style="margin-top:4px">Lição 1: escolha o que você realmente quer — sem se limitar pelos recursos atuais.</p>
+ <label>Meta</label><input id="mN" value="${esc(m.n)}" placeholder="Ex.: Ganhar R$ 100.000">
+ <label>Categoria</label><select id="mC">${CATS.map(c=>`<option ${c===m.cat?"selected":""}>${c}</option>`).join("")}</select>
+ <label>Prazo</label><input id="mP" type="date" value="${m.prazo}">
+ <label>Prioridade</label><select id="mPr">${["Alta","Média","Baixa"].map(p=>`<option ${p===m.prio?"selected":""}>${p}</option>`).join("")}</select>
+ <label>Progresso: <span id="mPgV">${m.prog}%</span></label><input id="mPg" type="range" min="0" max="100" value="${m.prog}" oninput="$('mPgV').textContent=this.value+'%'">
+ <div class="row" style="margin-top:18px"><button class="btn cyan" onclick="saveMeta(${idx!=null?idx:-1})">Salvar</button>${idx!=null?`<button class="btn ghost sm" onclick="S.metas.splice(${idx},1);save();closeModal();renderHome()">Excluir</button>`:""}</div>`)}
+function saveMeta(i){const m={n:$("mN").value.trim(),cat:$("mC").value,prazo:$("mP").value,prio:$("mPr").value,prog:+$("mPg").value};
+ if(!m.n)return;if(m.prog>=100&&!(i>=0&&S.metas[i].prog>=100)){confetti();toast("🎯 Meta concluída! Defina a próxima — a mente cresce com ideais maiores.")}
+ i>=0?S.metas[i]=m:S.metas.push(m);save();closeModal();renderHome()}
+function addHabito(){modal(`<h2>Novo hábito diário</h2><p class="sub" style="margin-top:4px">Lição 8: a prática repetida com emoção grava a nova crença no subconsciente.</p>
+ <label>Hábito</label><input id="mN" placeholder="Leitura, exercício, meditação, estudo...">
+ <button class="btn cyan" style="margin-top:18px" onclick="if($('mN').value.trim()){S.habitos.push({n:$('mN').value.trim(),hist:{}});save();closeModal();renderHome()}">Criar</button>`)}
+function toggleHabito(i){const h=S.habitos[i],d=hoje();h.hist[d]?delete h.hist[d]:h.hist[d]=1;if(h.hist[d])touchStreak();save();renderHome();checkBadges()}
+function delHabito(i){if(confirm("Excluir hábito \\""+S.habitos[i].n+"\\"?")){S.habitos.splice(i,1);save();renderHome()}}
+function habitSeq(h){let s=0,d=new Date();if(!h.hist[hoje()])d.setDate(d.getDate()-1);
+ while(h.hist[d.toISOString().slice(0,10)]){s++;d.setDate(d.getDate()-1)}return s}
+function habitCons(h){let c=0;for(let k=0;k<7;k++){const d=new Date();d.setDate(d.getDate()-k);if(h.hist[d.toISOString().slice(0,10)])c++}return Math.round(c/7*100)}
+function calcIEP(){
+ const lic=MAIN.filter(l=>S.done.includes(l.id)).length/MAIN.length;
+ const hab=S.habitos.length?S.habitos.reduce((a,h)=>a+habitCons(h),0)/S.habitos.length/100:0;
+ const met=S.metas.length?S.metas.reduce((a,m)=>a+m.prog,0)/S.metas.length/100:0;
+ const stk=Math.min(1,S.streak/30);
+ const fin=(S.fin.receb||[]).length?1:0;
+ const dia=Math.min(1,S.diario.length/10);
+ const score=Math.round(lic*30+hab*25+met*20+stk*10+fin*10+dia*5);
+ const d=hoje();const last=S.iepHist[S.iepHist.length-1];
+ if(!last||last.d!==d)S.iepHist.push({d,s:score});else last.s=score;
+ if(S.iepHist.length>60)S.iepHist=S.iepHist.slice(-60);save();
+ return{score,det:`Estudo ${Math.round(lic*100)}% · Hábitos ${Math.round(hab*100)}% · Metas ${Math.round(met*100)}% · Sequência ${S.streak}d`}}
+function renderIEP(){const r=calcIEP();
+ $("iepV").textContent=r.score;$("iepBar").style.width=r.score+"%";$("iepDet").textContent=r.det;
+ const h=S.iepHist.slice(-20);if(h.length<2){$("iepSpark").innerHTML="";return}
+ const max=Math.max(...h.map(x=>x.s),1);
+ const pts=h.map((x,i)=>`${(i/(h.length-1)*116+2).toFixed(1)},${(42-x.s/max*38).toFixed(1)}`).join(" ");
+ $("iepSpark").innerHTML=`<polyline points="${pts}" fill="none" stroke="#00D4FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`}
+function renderHabitos(){
+ $("hHabitos").innerHTML=S.habitos.map((h,i)=>{const on=!!h.hist[hoje()];
+  return `<div onclick="toggleHabito(${i})" oncontextmenu="event.preventDefault();delHabito(${i})" style="cursor:pointer;padding:9px 14px;border-radius:99px;font-size:13px;font-weight:600;border:1px solid ${on?"var(--neonline)":"var(--line)"};background:${on?"var(--neonbg)":"var(--bg2)"};color:${on?"var(--neon2)":"var(--ink2)"}">${on?"✓ ":""}${esc(h.n)} <span class="mono" style="font-size:10px;opacity:.7">${habitSeq(h)}d·${habitCons(h)}%</span></div>`}).join("")||"<p class='sub'>Crie seus hábitos diários — leitura, exercício, meditação, estudo. (Toque para marcar, toque longo/direito para excluir)</p>"}
+function renderMetas(){
+ $("hMetas").innerHTML=S.metas.map((m,i)=>`<div style="padding:11px 0;border-bottom:1px solid var(--line);cursor:pointer" onclick="addMeta(${i})">
+  <div class="row" style="justify-content:space-between"><b style="font-size:14px;${m.prog>=100?"color:var(--ok)":""}">${m.prog>=100?"✓ ":""}${esc(m.n)}</b><span class="mono" style="font-size:12px;color:var(--neon2)">${m.prog}%</span></div>
+  <div class="bar" style="margin-top:6px"><i style="width:${m.prog}%"></i></div>
+  <div class="sub" style="font-size:11px;margin-top:4px">${esc(m.cat)} · ${m.prio} ${m.prazo?"· até "+m.prazo.split("-").reverse().join("/"):""}</div></div>`).join("")||"<p class='sub'>Nenhuma meta. Defina sua primeira meta tipo C.</p>"}
 
 /* ============ LIÇÕES ============ */
 function unlocked(l){if(l.ordem>12)return true;if(l.ordem===0)return true;const prev=MAIN.find(x=>x.ordem===l.ordem-1);return prev?S.done.includes(prev.id):true}
@@ -393,11 +466,22 @@ const norm=s=>s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
 const toks=s=>norm(s).split(/[^a-z0-9]+/).filter(w=>w.length>2&&!STOP.has(w));
 // índice: parágrafos de todas as lições + textos
 let IDX=[];
+function idxAdd(src,tit,texto){texto.split(/\n\s*\n/).forEach(p=>{p=p.trim();if(p.length>120)IDX.push({src,tit,p,tk:toks(p)})})}
+function loadDocs(){try{return JSON.parse(localStorage.getItem("animus_docs")||"[]")}catch(e){return[]}}
 (function build(){
- const add=(src,tit,texto)=>{texto.split(/\n\s*\n/).forEach(p=>{p=p.trim();if(p.length>120)IDX.push({src,tit,p,tk:toks(p)})})};
- KB.licoes.forEach(l=>add(l.id,l.titulo,l.texto));
- KB.textos.forEach(t=>add(t.id,"Texto complementar — "+t.titulo,t.texto));
+ KB.licoes.forEach(l=>idxAdd(l.id,l.titulo,l.texto));
+ KB.textos.forEach(t=>idxAdd(t.id,"Texto complementar — "+t.titulo,t.texto));
+ loadDocs().forEach(d=>idxAdd("doc:"+d.n,"Documento — "+d.n,d.t));
 })();
+function kbUpload(files){
+ const docs=loadDocs();let pend=files.length;
+ [...files].forEach(f=>{const r=new FileReader();
+  r.onload=()=>{docs.push({n:f.name,t:String(r.result).slice(0,400000)});idxAdd("doc:"+f.name,"Documento — "+f.name,String(r.result));
+   if(--pend===0){try{localStorage.setItem("animus_docs",JSON.stringify(docs));toast("📚 "+files.length+" documento(s) adicionados à base do mentor.")}catch(e){toast("Limite de armazenamento atingido — documento muito grande.")}renderKbList()}};
+  r.readAsText(f,"utf-8")})}
+function delDoc(i){const docs=loadDocs();docs.splice(i,1);localStorage.setItem("animus_docs",JSON.stringify(docs));IDX=IDX.filter(d=>!String(d.src).startsWith("doc:"));docs.forEach(d=>idxAdd("doc:"+d.n,"Documento — "+d.n,d.t));renderKbList();toast("Documento removido.")}
+function renderKbList(){const el=$("kbList");if(!el)return;
+ el.innerHTML=loadDocs().map((d,i)=>`<div class="itemrow"><div><b style="font-size:13px">📄 ${esc(d.n)}</b><div class="sub" style="font-size:11px">${Math.round(d.t.length/1000)}k caracteres</div></div><button class="btn ghost sm" onclick="delDoc(${i})">✕</button></div>`).join("")}
 function search(q,n=4){
  const qt=toks(q);if(!qt.length)return[];
  const df={};qt.forEach(t=>{df[t]=IDX.filter(d=>d.tk.includes(t)).length||1});
@@ -417,9 +501,29 @@ function ask(){
  const tp=msg(`<span class="typing"><i></i><i></i><i></i></span>`,"bot");
  setTimeout(()=>{tp.innerHTML=answer(q)},500+Math.random()*500);
 }
+function userCtx(){
+ const r=calcIEP();
+ const mAbertas=S.metas.filter(m=>m.prog<100);
+ const habHoje=S.habitos.filter(h=>h.hist[hoje()]).length;
+ return{iep:r.score,metas:mAbertas,habTotal:S.habitos.length,habHoje,
+  habPend:S.habitos.filter(h=>!h.hist[hoje()]).map(h=>h.n)}}
+function coach(){
+ const c=userCtx();let p=[];
+ if(c.habPend.length)p.push(`⚡ Você ainda não marcou hoje: <b>${c.habPend.map(esc).join(", ")}</b>. A Lição 8 lembra: é a prática repetida que grava a nova crença.`);
+ const atrasada=c.metas.find(m=>m.prazo&&m.prazo<hoje());
+ if(atrasada)p.push(`🎯 A meta "<b>${esc(atrasada.n)}</b>" passou do prazo. Decida: renegocie o prazo ou aja hoje — a distância entre saber e fazer se fecha com ação (Lição 2).`);
+ return p}
 function answer(q){
  const hits=search(q,4);
  const nq=norm(q);
+ // contexto pessoal: metas, hábitos, progresso
+ if(/minhas? metas?|meus? objetivo/.test(nq)){const c=userCtx();
+  return c.metas.length?`<b>Suas metas em andamento</b><br>${c.metas.map(m=>`• ${esc(m.n)} — ${m.prog}% (${esc(m.cat)}${m.prazo?", até "+m.prazo.split("-").reverse().join("/"):""})`).join("<br>")}<br><br>${coach().join("<br><br>")||"Continue: qual ação você executa <b>hoje</b> para a meta mais prioritária?"}`:`Você ainda não definiu metas. A Lição 1 ensina: escolha um objetivo tipo C — algo que você realmente quer, sem se limitar pelo "como". Crie a primeira no painel inicial.`}
+ if(/meus? habitos?|minha rotina/.test(nq)){const c=userCtx();
+  return c.habTotal?`<b>Seus hábitos</b>: ${c.habHoje}/${c.habTotal} feitos hoje.<br>${S.habitos.map(h=>`• ${esc(h.n)} — sequência ${habitSeq(h)}d, consistência ${habitCons(h)}% (7 dias)`).join("<br>")}<br><br>${coach().join("<br><br>")||"Excelente. Repetição com envolvimento emocional — esse é o Poder da Prática (Lição 8)."}`:`Você ainda não criou hábitos. Comece com 1 ou 2 — a Lição 3 recomenda substituir um hábito por vez, não todos de uma vez.`}
+ if(/meu (progresso|iep|nivel|desempenho|evolucao)|como estou/.test(nq)){const c=userCtx();
+  return `<b>Seu IEP atual: ${c.iep}/100</b><br>${calcIEP().det}<br><br>${coach().join("<br><br>")||"Para subir o índice: conclua a próxima lição, mantenha os hábitos e atualize o progresso das metas."}`}
+ // base personalizada (documentos enviados)
  // intenções diretas
  const lic=KB.licoes.find(l=>nq.match(new RegExp("licao\\s*0?"+l.ordem+"(\\D|$)"))&&l.ordem>=1&&l.ordem<=12);
  if(lic&&/exercicio|tarefa|pratic/.test(nq))return secAnswer(lic,"exercicios");
@@ -431,6 +535,7 @@ function answer(q){
  let h=`<b>${esc(best.tit)}</b><br>${esc(trim(best.p,540))}`;
  if(hits[1]&&hits[1].src!==best.src)h+=`<br><br><b>${esc(hits[1].tit)}</b><br>${esc(trim(hits[1].p,360))}`;
  if(rel&&rel.exercicios.length&&/como|o que faço|aplicar|pratica/.test(nq))h+=`<br><br><b>Para aplicar:</b> ${esc(trim(rel.exercicios[0],240))}`;
+ const nudge=coach();if(nudge.length&&Math.random()<.4)h+=`<br><br>${nudge[0]}`;
  h+=`<span class="src">FONTES: ${lessons.map(esc).join(" · ")}</span>`;
  if(rel)h+=`<div class="sugg"><button onclick="openLesson('${rel.id}','s-ai')">Abrir ${esc(rel.titulo.split("— ")[0].trim())} completa →</button></div>`;
  return h;
@@ -530,6 +635,7 @@ function renderProfile(){
  $("pBadges").innerHTML=BADGES.map(b=>`<div class="badge ${S.badges.includes(b.id)?"":"off"}"><div class="ic">${b.ic}</div><p>${b.n}</p></div>`).join("");
  $("pDiario").innerHTML=S.diario.slice(0,10).map((d,i)=>`<div class="itemrow"><div style="flex:1"><b style="font-size:13px">${esc(d.dt)}</b><div class="sub" style="font-size:13px">${esc(d.tx)}</div></div><button class="btn ghost sm" onclick="S.diario.splice(${i},1);save();renderProfile()">✕</button></div>`).join("")||"<p class='sub'>Sem registros.</p>";
  $("pEditName").value=S.name;$("pEditDream").value=S.dream;
+ renderKbList();
 }
 function saveProfile(){S.name=$("pEditName").value;S.dream=$("pEditDream").value;save();toast("Perfil atualizado.");renderProfile()}
 function resetAll(){if(confirm("Apagar todos os dados e recomeçar?")){localStorage.removeItem("animus");location.reload()}}
