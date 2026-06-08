@@ -1,0 +1,29 @@
+{
+  "name": "ANIMUS — Sistema de Transformação Pessoal",
+  "short_name": "ANIMUS",
+  "description": "Inteligência treinada nas 12 lições para grandes metas e sonhos",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#00D4FF",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "productivity",
+    "lifestyle",
+    "education"
+  ]
+}
