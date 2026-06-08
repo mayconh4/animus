@@ -233,7 +233,8 @@ function unlockApp(){
 
  <!-- LEITOR -->
  <section class="screen" id="s-reader">
-  <button class="btn ghost sm" onclick="nav(backTo)">← Voltar</button>
+  <div class="row" style="justify-content:space-between"><button class="btn ghost sm" onclick="nav(backTo)">← Voltar</button>
+   <button class="btn ghost sm" id="rSpeak" onclick="narrarLicao(this)">🔊 Ouvir</button></div>
   <div class="chip" style="margin-top:16px" id="rChip"></div>
   <h1 style="margin:8px 0 2px;font-size:22px" id="rTitle"></h1>
   <div class="tabs" id="rTabs"></div>
@@ -509,6 +510,22 @@ function aiWelcome(){
  msg(`<div class="sugg">${["O que é uma meta tipo C?","Como mudar um paradigma?","O que é a barreira do terror?","Como funciona o mastermind?","Qual o denominador comum do sucesso?","Como aumentar minha autoimagem?"].map(s=>`<button onclick="$('chatIn').value='${s}';ask()">${s}</button>`).join("")}</div>`,"bot").style.background="transparent";
  const m=$("chatlog").lastChild;m.style.border="none";m.style.boxShadow="none";m.style.maxWidth="100%";
 }
+/* ===== Narrador (síntese de voz, offline) ===== */
+let _speaking=false;
+function narrarLicao(btn){const l=curL;if(!l)return;
+ const txt=curTab==="texto"?l.texto:curTab==="resumo"?l.resumo:curTab==="ideias"?l.ideias.join(". "):curTab==="exercicios"?l.exercicios.join(". "):l.citacoes.join(". ");
+ speak(l.titulo+". "+txt,btn)}
+function speak(text,btn){
+ if(!window.speechSynthesis){toast("Seu navegador não suporta narração.");return}
+ if(_speaking){speechSynthesis.cancel();_speaking=false;document.querySelectorAll(".spk-on").forEach(b=>{b.classList.remove("spk-on");b.innerHTML=b.dataset.ico});return}
+ const u=new SpeechSynthesisUtterance(String(text).replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim());
+ u.lang="pt-BR";u.rate=1;u.pitch=1;
+ const vs=speechSynthesis.getVoices().filter(v=>v.lang.startsWith("pt"));if(vs.length)u.voice=vs[0];
+ u.onend=()=>{_speaking=false;if(btn){btn.classList.remove("spk-on");btn.innerHTML=btn.dataset.ico}};
+ u.onerror=u.onend;
+ _speaking=true;if(btn){btn.dataset.ico=btn.innerHTML;btn.classList.add("spk-on");btn.innerHTML="⏸ Parar"}
+ speechSynthesis.cancel();speechSynthesis.speak(u);
+}
 /* ===== Reconhecimento de voz (offline do navegador) ===== */
 let _rec=null,_listening=false;
 function micCentral(){nav("s-ai");setTimeout(()=>{if(!_listening)toggleMic()},400)}
@@ -533,7 +550,7 @@ function ask(){
  const q=$("chatIn").value.trim();if(!q)return;$("chatIn").value="";
  msg(esc(q),"user");S.aiCount++;save();checkBadges();
  const tp=msg(`<span class="typing"><i></i><i></i><i></i></span>`,"bot");
- setTimeout(()=>{tp.innerHTML=answer(q)},500+Math.random()*500);
+ setTimeout(()=>{const a=answer(q);tp.innerHTML=a+`<button onclick="speak(this.parentNode.getAttribute('data-spk'),this)" data-ico="🔊 Ouvir resposta" style="display:block;margin-top:10px;border:none;background:var(--bg2);color:var(--ink2);border-radius:99px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">🔊 Ouvir resposta</button>`;tp.setAttribute("data-spk",a.replace(/<[^>]+>/g," "));$("s-ai").scrollTop=$("s-ai").scrollHeight},500+Math.random()*500);
 }
 function userCtx(){
  const r=calcIEP();
