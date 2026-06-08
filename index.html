@@ -17,14 +17,12 @@
  --r:18px;--sh:0 1px 2px rgba(10,20,40,.04),0 8px 28px rgba(10,20,40,.06);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
-html,body{overflow-x:hidden;width:100%;max-width:100%;position:relative;touch-action:pan-y}
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);overflow:hidden;
+html,body{height:100%;overflow:hidden;width:100%;max-width:100%;position:fixed;top:0;left:0;right:0;bottom:0;overscroll-behavior:none;touch-action:pan-y}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);
  background-image:radial-gradient(1200px 600px at 80% -10%,rgba(0,212,255,.06),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(0,212,255,.05),transparent 60%)}
 .mono{font-family:'IBM Plex Mono',monospace}
-#app{max-width:520px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;position:relative}
-.screen{flex:1;overflow-y:auto;overflow-x:hidden;padding:22px 20px 110px;display:none;scroll-behavior:smooth;max-width:100%}
-#app{overflow-x:hidden;width:100%}
+#app{max-width:520px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;position:relative;overflow:hidden;width:100%}
+.screen{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:22px 20px calc(120px + env(safe-area-inset-bottom));display:none;scroll-behavior:smooth;max-width:100%}
 .screen.active{display:block;animation:fadeUp .35s cubic-bezier(.2,.8,.2,1)}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
@@ -54,7 +52,7 @@ label{font-size:12px;font-weight:600;color:var(--ink2);letter-spacing:.06em;text
 .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--neon),var(--neon2));border-radius:99px;transition:width .6s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 10px rgba(0,212,255,.5)}
 .hr{height:1px;background:var(--line);margin:14px 0}
 /* nav */
-#nav{position:absolute;bottom:0;left:0;right:0;display:flex;background:rgba(255,255,255,.85);backdrop-filter:blur(20px);border-top:1px solid var(--line);padding:10px 8px calc(10px + env(safe-area-inset-bottom));z-index:50}
+#nav{position:absolute;bottom:0;left:0;right:0;display:flex;background:rgba(255,255,255,.92);backdrop-filter:blur(20px);border-top:1px solid var(--line);padding:10px 8px calc(14px + env(safe-area-inset-bottom));z-index:50;box-shadow:0 -4px 24px rgba(10,20,40,.06)}
 .nv{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:600;color:var(--ink3);cursor:pointer;letter-spacing:.04em;transition:.2s;border:none;background:none;font-family:inherit}
 .nv svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .nv.on{color:var(--neon2)}
@@ -173,8 +171,12 @@ function unlockApp(){
  <!-- HOME -->
  <section class="screen active" id="s-home">
   <div class="head">
-   <div><div class="chip">Painel de controle</div><h1 id="hGreet" style="margin-top:8px">Olá</h1></div>
+   <div><div class="chip" id="hDate">Painel de controle</div><h1 id="hGreet" style="margin-top:8px">Olá</h1></div>
    <div class="streak">⚡ <span id="hStreak">0</span>d</div>
+  </div>
+  <div class="card" style="background:linear-gradient(135deg,#0A0C10,#1a2030);color:#fff;border:none;padding:20px">
+   <div class="chip" style="color:var(--neon)">Foco de hoje</div>
+   <p id="hFocus" style="font-size:15.5px;line-height:1.55;margin-top:8px;font-weight:500"></p>
   </div>
   <div class="statgrid">
    <div class="stat"><div class="v" id="stLic">0/13</div><div class="k">Lições</div></div>
@@ -353,8 +355,19 @@ function checkBadges(){BADGES.forEach(b=>{if(!S.badges.includes(b.id)&&b.t()){S.
 
 /* ============ HOME ============ */
 function renderHome(){
- $("hGreet").textContent=S.name?`Olá, ${S.name.split(" ")[0]}`:"Olá";
+ const hr=new Date().getHours();const sd=hr<12?"Bom dia":hr<18?"Boa tarde":"Boa noite";
+ $("hGreet").textContent=S.name?`${sd}, ${S.name.split(" ")[0]}`:sd;
  $("hStreak").textContent=S.streak;
+ $("hDate").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}).toUpperCase();
+ // foco do dia: hábito pendente > meta prioritária > frase das lições
+ const FRASES=["O segredo do sucesso é o hábito de fazer o que os fracassados não gostam de fazer. — Lição 10","A distância entre saber e fazer se fecha com uma única coisa: ação. — Lição 2","Você se torna aquilo em que pensa com emoção e constância. — Lição 4","Persista: seja o que decidir e no que acreditar, com persistência você atingirá. — Lição 2","Toda grande mudança esbarra na barreira do terror — atravesse-a. — Lição 7"];
+ const pend=S.habitos.filter(h=>!h.hist[hoje()]);
+ const metaP=S.metas.filter(m=>m.prog<100).sort((a,b)=>({Alta:0,"Média":1,Baixa:2}[a.prio]-{Alta:0,"Média":1,Baixa:2}[b.prio]))[0];
+ let foco;
+ if(pend.length)foco=`Você tem ${pend.length} hábito(s) para marcar hoje: ${pend.map(h=>h.n).join(", ")}.`;
+ else if(metaP)foco=`Avance na meta "${metaP.n}" (${metaP.prog}%). Qual o próximo passo concreto?`;
+ else foco=FRASES[new Date().getDate()%FRASES.length];
+ $("hFocus").textContent=foco;
  const doneMain=MAIN.filter(l=>S.done.includes(l.id)).length;
  $("stLic").textContent=doneMain+"/"+MAIN.length;
  $("stEx").textContent=Object.values(S.exDone).reduce((a,b)=>a+b.length,0);
