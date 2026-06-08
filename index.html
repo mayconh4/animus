@@ -287,14 +287,15 @@ function unlockApp(){
  <div id="nav">
   <button class="nv on" data-s="s-home" onclick="nav('s-home')"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a2 2 0 01-2 2h-4v-7h-6v7H5a2 2 0 01-2-2z"/></svg>Início</button>
   <button class="nv" data-s="s-lessons" onclick="nav('s-lessons')"><svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 19a2 2 0 002 2h13"/></svg>Lições</button>
-  <button class="nv ai" data-s="s-ai" onclick="nav('s-ai')"><span class="orb"><svg viewBox="0 0 24 24" style="width:26px;height:26px"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></span>IA</button>
+  <button class="nv ai" data-s="s-ai" onclick="micCentral()"><span class="orb" id="orbMic"><svg viewBox="0 0 24 24" style="width:26px;height:26px"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></span>Falar</button>
   <button class="nv" data-s="s-caixa" onclick="nav('s-caixa')"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M16 15h2"/></svg>Caixa</button>
   <button class="nv" data-s="s-profile" onclick="nav('s-profile')"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6"/></svg>Perfil</button>
  </div>
 
  <!-- CHATBAR -->
  <div id="chatbar"><div class="inner">
-  <input id="chatIn" placeholder="Pergunte ao mentor..." onkeydown="if(event.key==='Enter')ask()">
+  <button id="micBtn" onclick="toggleMic()" style="background:var(--bg2)"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--ink2);fill:none;stroke-width:2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg></button>
+  <input id="chatIn" placeholder="Pergunte ou toque no microfone..." onkeydown="if(event.key==='Enter')ask()">
   <button onclick="ask()"><svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:#fff;fill:none;stroke-width:2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
  </div></div>
 </div>
@@ -507,6 +508,26 @@ function aiWelcome(){
  msg(`Olá${S.name?", <b>"+esc(S.name.split(" ")[0])+"</b>":""}. Sou o núcleo de inteligência do ANIMUS, treinado em <b>todo</b> o conteúdo da sua mentoria: prefácio, 12 lições, persistência, riscos, mastermind e os 11 textos complementares.<br><br>Pergunte qualquer coisa — sobre paradigmas, metas tipo C, a barreira do terror, autoimagem, mastermind...`,"bot");
  msg(`<div class="sugg">${["O que é uma meta tipo C?","Como mudar um paradigma?","O que é a barreira do terror?","Como funciona o mastermind?","Qual o denominador comum do sucesso?","Como aumentar minha autoimagem?"].map(s=>`<button onclick="$('chatIn').value='${s}';ask()">${s}</button>`).join("")}</div>`,"bot").style.background="transparent";
  const m=$("chatlog").lastChild;m.style.border="none";m.style.boxShadow="none";m.style.maxWidth="100%";
+}
+/* ===== Reconhecimento de voz (offline do navegador) ===== */
+let _rec=null,_listening=false;
+function micCentral(){nav("s-ai");setTimeout(()=>{if(!_listening)toggleMic()},400)}
+function toggleMic(){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){toast("Seu navegador não suporta ditado por voz. Use o Safari/Chrome atualizado ou digite.");return}
+ if(_listening){_rec&&_rec.stop();return}
+ _rec=new SR();_rec.lang="pt-BR";_rec.interimResults=true;_rec.continuous=false;
+ let fin="";
+ _rec.onstart=()=>{_listening=true;setMicUI(true)};
+ _rec.onresult=e=>{let itv="";for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript;if(e.results[i].isFinal)fin+=t;else itv+=t}$("chatIn").value=(fin+itv).trim()};
+ _rec.onerror=ev=>{_listening=false;setMicUI(false);if(ev.error==="not-allowed"||ev.error==="service-not-allowed")toast("Permita o acesso ao microfone nas configurações do navegador.")};
+ _rec.onend=()=>{_listening=false;setMicUI(false);if($("chatIn").value.trim())ask()};
+ try{_rec.start()}catch(e){}
+}
+function setMicUI(on){
+ const b=$("micBtn"),o=$("orbMic");
+ if(b){b.style.background=on?"var(--err)":"var(--bg2)";b.querySelector("svg").style.stroke=on?"#fff":"var(--ink2)";if(on)b.style.animation="pulse 1.2s infinite";else b.style.animation=""}
+ if(o){o.style.animation=on?"pulse 1.2s infinite":""}
 }
 function ask(){
  const q=$("chatIn").value.trim();if(!q)return;$("chatIn").value="";
